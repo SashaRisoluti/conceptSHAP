@@ -13,7 +13,7 @@ scikit-image==0.15.0
 scikit-learn==0.22
 scipy
 pandas
-tensorflow-estimator==1.13.0
+tensorflow-estimator
 tensorflow-gpu==1.13.1 # if GPU machine
 tensorflow-hub==0.4.0
 transformers==2.5.1
