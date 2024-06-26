@@ -20,5 +20,5 @@ torch
 seaborn
 torchvision
 tqdm==4.43.0
-# tensorboardX==2.0
+tensorboardX
 tensorflow[and-cuda]
