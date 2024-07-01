@@ -90,6 +90,8 @@ def process_dataframe(_dframe, _tokenizer, batch_size):
 def run_model(_model, loader):
   ce_loss = nn.CrossEntropyLoss()
   _model.eval()
+  all_losses = []
+  
   for step, batch in enumerate(loader):
     b_input_ids = batch[0].to(device)
     b_input_mask = batch[1].to(device)
@@ -102,15 +104,16 @@ def run_model(_model, loader):
     print(f"b_labels type: {type(b_labels)}")
 
     if not isinstance(logits, torch.Tensor):
-      logits = torch.tensor(logits)
+      logits = torch.tensor(logits).to(device)
 
     if not isinstance(b_labels, torch.Tensor):
-      b_labels = torch.tensor(b_labels)
+      b_labels = torch.tensor(b_labels).to(device)
 
     loss_val_list = ce_loss(logits, b_labels)
 
-  all_losses = []
-  for batch in tqdm(loader):
+    all_losses.append(loss_val_list.item())
+
+"""  for batch in tqdm(loader):
     b_input_ids, b_input_mask, b_labels = batch
     # print(torch.sum(b_labels).item())
     # outputs doesn't need to be saved
@@ -120,7 +123,9 @@ def run_model(_model, loader):
         loss_val_list = ce_loss(logits, b_labels)
         pred_loss = torch.mean(loss_val_list).item()
         all_losses.append(pred_loss)
-  print("inference loss:", np.mean(np.array(all_losses)))
+  print("inference loss:", np.mean(np.array(all_losses)))"""
+  mean_loss = np.mean(all_losses)
+  print("inference loss:", mean_loss)
 
 
 """Notice here: the function above added a forward hook to "layer_idx" layer of our model. You might want to google "register_forward_hook" to fully understand it but in short, everytime something is fed into the model and through the layer we specified, the function "extract_activation_hook" will get called. And "extract_activation_hook" will save the layer output to EXTRACTED_ACTIVATIONS when RECORD is true."""
