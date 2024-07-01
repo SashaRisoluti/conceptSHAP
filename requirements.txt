@@ -21,5 +21,4 @@ torch==1.11.0
 seaborn==0.10.0
 torchvision==0.12.0
 tqdm==4.43.0
-tensorboardX
 scikit-learn
