@@ -95,7 +95,7 @@ def run_model(_model, loader):
     b_input_mask = batch[1].to(device)
     b_labels = batch[2].to(device)
     with torch.no_grad():
-      outputs = model(b_input_ids, token_type_ids=None, attention_mask=b_input_mask)
+      outputs = _model(b_input_ids, token_type_ids=None, attention_mask=b_input_mask)
       logits = outputs.logits
 
     print(f"logits type: {type(logits)}")
