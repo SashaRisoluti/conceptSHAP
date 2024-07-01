@@ -89,7 +89,7 @@ def process_dataframe(_dframe, _tokenizer, batch_size):
 
 def run_model(_model, loader):
   ce_loss = nn.CrossEntropyLoss()
-  model.eval()
+  _model.eval()
   for step, batsh in tqdm(loader):
     b_inputs_ids = batch[0].to(device)
     b_input_mask = batch[1].to(device)
