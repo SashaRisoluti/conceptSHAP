@@ -78,7 +78,7 @@ def process_dataframe(_dframe, _tokenizer, batch_size):
   data = TensorDataset(inputs_reformatted, masks_reformatted, labels_reformatted)
   sampler = SequentialSampler(data)
 
-  data loader = DataLoader(data, sampler=sampler, batch_size=batch_size)
+  dataloader = DataLoader(data, sampler=sampler, batch_size=batch_size)
   
   return dataloader
 
