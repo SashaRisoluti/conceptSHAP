@@ -91,7 +91,7 @@ def run_model(_model, loader):
   ce_loss = nn.CrossEntropyLoss()
   _model.eval()
   for step, batch in enumerate(loader):
-    b_inputs_ids = batch[0].to(device)
+    b_input_ids = batch[0].to(device)
     b_input_mask = batch[1].to(device)
     b_labels = batch[2].to(device)
     with torch.no_grad():
