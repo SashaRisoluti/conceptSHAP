@@ -71,14 +71,14 @@ def process_dataframe(_dframe, _tokenizer, batch_size):
     seq_mask = [float(i>0) for i in seq]
     amasks.append(seq_mask)
  
-  inputs_reformatted = torch.tensor(ids).cuda()
-  labels_reformatted = torch.tensor(labels.astype('int64')).cuda()
-  masks_reformatted = torch.tensor(amasks).cuda()
+  inputs_reformatted = torch.tensor(ids)
+  labels_reformatted = torch.tensor(labels)
+  masks_reformatted = torch.tensor(amasks)
 
   data = TensorDataset(inputs_reformatted, masks_reformatted, labels_reformatted)
   sampler = SequentialSampler(data)
 
-  dataloader = DataLoader(data, sampler=sampler, batch_size=batch_size)
+  data loader = DataLoader(data, sampler=sampler, batch_size=batch_size)
   
   return dataloader
 
@@ -89,6 +89,25 @@ def process_dataframe(_dframe, _tokenizer, batch_size):
 
 def run_model(_model, loader):
   ce_loss = nn.CrossEntropyLoss()
+  model.eval()
+  for step, batsh in tqdm(loader):
+    b_inputs_ids = batch[0].to(device)
+    b_input_mask = batch[1].to(device)
+    b_labels = batch[2].to(device)
+    with torch.no_grad():
+      outputs = model(b_input_ids, token_type_ids=None, attention_mask=b_input_mask)
+      logits = outputs.logits
+
+    print(f"logits type: {type(logits)}")
+    print(f"b_labels type: {type(b_labels)}")
+
+    if not isinstance(logits, torch.Tensor):
+      logits = torch.tensor(logits)
+
+    if not isinstance(b_labels, torch.Tensor):
+      b_labels = torch.tensor(b_labels)
+
+    loss_val_list = ce_loss(logits, b_labels)
 
   all_losses = []
   for batch in tqdm(loader):
