@@ -15,7 +15,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 def load_dataset(data_dir, tokenizer, max_seq_length):
     # Function to load datasets
     # (Implementation remains unchanged)
-    small_df = pd.read_pickle(PATH)
+    small_df = pd.read_pickle(data_dir)
     labels = list(small_df["label"])
     polarity = [0 if l=="positive"  else 1 for l in labels]
     small_df["polarity"] = polarity
