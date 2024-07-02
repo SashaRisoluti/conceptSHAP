@@ -124,8 +124,8 @@ def run_model(_model, loader):
         pred_loss = torch.mean(loss_val_list).item()
         all_losses.append(pred_loss)
   print("inference loss:", np.mean(np.array(all_losses)))"""
-  mean_loss = np.mean(all_losses)
-  print("inference loss:", mean_loss)
+ mean_loss = np.mean(all_losses)
+ print("inference loss:", mean_loss)
 
 
 """Notice here: the function above added a forward hook to "layer_idx" layer of our model. You might want to google "register_forward_hook" to fully understand it but in short, everytime something is fed into the model and through the layer we specified, the function "extract_activation_hook" will get called. And "extract_activation_hook" will save the layer output to EXTRACTED_ACTIVATIONS when RECORD is true."""
