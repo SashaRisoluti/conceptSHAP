@@ -103,7 +103,7 @@ class ConceptNet(nn.Module):
             print(len(c_id))
             for idx in c_id:
                 exclude = np.delete(c_id, idx)
-                subsets = np.asarray(self.powerset(list(exclude)))
+                subsets = self.powerset(list(exclude))
                 sum = 0
                 for subset in subsets:
                     # score 1:
@@ -119,7 +119,8 @@ class ConceptNet(nn.Module):
                     if len(c1) > 0:
                         if len(c1) == 1:
                             concept = self.concept[:, c1[0]].unsqueeze(1)
-                        else: concept = torch.stack([self.concept[:, i] for i in c1], dim = 1) if len(c1) > 1 else self.concept[:, c1[0]].unsqueeze(1)
+                        else: 
+                            concept = torch.stack([self.concept[:, i] for i in c1], dim = 1)
                         pred = proj(concept.cuda())
                         score2 = n(pred)
                     else: score2 = torch.tensor(0)
