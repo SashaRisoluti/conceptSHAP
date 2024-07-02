@@ -119,7 +119,7 @@ class ConceptNet(nn.Module):
                     if len(c1) > 0:
                         if len(c1) == 1:
                             concept = self.concept[:, c1[0]].unsqueeze(1)
-                        else: concept = torch.stack([self.concept[:, i] for i in c1], dim = 1)
+                        else: concept = torch.stack([self.concept[:, i] for i in c1], dim = 1) if len(c1) > 1 else self.concept[:, c1[0]].unsqueeze(1)
                         pred = proj(concept.cuda())
                         score2 = n(pred)
                     else: score2 = torch.tensor(0)
