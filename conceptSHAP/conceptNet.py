@@ -99,6 +99,7 @@ class ConceptNet(nn.Module):
 
             # shapley score (note for n_concepts > 10, this is very inefficient to calculate)
             c_id = np.asarray(list(range(len(self.concept.T))))
+            print(len(c_id))
             for idx in c_id:
                 exclude = np.delete(c_id, idx)
                 subsets = np.asarray(self.powerset(list(exclude)))
