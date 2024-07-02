@@ -18,6 +18,7 @@ class ConceptNet(nn.Module):
         r_1 = -0.5
         r_2 = 0.5
         concept = (r_2 - r_1) * torch.rand(embedding_dim, n_concepts) + r_1
+        print(f"Concepts shape: {concept.shape}")
         return concept
 
     def forward(self, train_embedding, h_x, topk):
