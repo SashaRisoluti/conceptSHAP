@@ -108,20 +108,22 @@ class ConceptNet(nn.Module):
                 for subset in subsets:
                     # score 1:
                     c1 = subset + [idx]
-                    concept = np.take(self.concept.T.detach().cpu().numpy(), np.asarray(c1), axis=0)
-                    concept = torch.from_numpy(concept).T
+                    if len(c1) == 1:
+                        concept = self.concept[:, c1[0]].unsqueeze(1)
+                    else: concept = torch.stack([self.concept[:, i] for i in c1], dim = 1)
                     pred = proj(concept.cuda())
                     score1 = n(pred)
 
                     # score 2:
                     c1 = subset
-                    if c1 != []:
-                        concept = np.take(self.concept.T.detach().cpu().numpy(), np.asarray(c1), axis=0)
-                        concept = torch.from_numpy(concept).T
+                    if len(c1) > 0:
+                        if len(c1) == 1:
+                            concept = self.concept[:, c1[0]].unsqueeze(1)
+                        else: concept = torch.stack([self.concept[:, i] for i in c1], dim = 1)
                         pred = proj(concept.cuda())
                         score2 = n(pred)
                     else: score2 = torch.tensor(0)
-
+                    
                     norm = (math.factorial(len(c_id) - len(subset) - 1) * math.factorial(len(subset))) / \
                            math.factorial(len(c_id))
                     sum += norm * (score1.data.item() - score2.data.item())
