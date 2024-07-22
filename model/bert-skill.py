@@ -1,5 +1,3 @@
-# coding: utf-8
-
 import torch
 import pandas as pd
 import numpy as np
@@ -147,6 +145,13 @@ if __name__ == "__main__":
     num_labels = 615
 
     # Ensure all label values are within the valid range
+    print("Min train label:", train_labels.min())
+    print("Max train label:", train_labels.max())
+
+    # Find and print out-of-range labels
+    out_of_range_labels = train_labels[(train_labels < 0) | (train_labels >= num_labels)]
+    print("Out-of-range train labels:", out_of_range_labels)
+    
     assert train_labels.min() >= 0 and train_labels.max() < num_labels, "Train labels are out of range"
     assert validation_labels.min() >= 0 and validation_labels.max() < num_labels, "Validation labels are out of range"
     assert test_labels.min() >= 0 and test_labels.max() < num_labels, "Test labels are out of range"
