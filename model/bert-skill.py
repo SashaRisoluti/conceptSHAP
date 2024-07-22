@@ -77,10 +77,10 @@ if __name__ == "__main__":
 
     train_df.sample(10)
 
-    sentences_train = train_df.text.values
+    sentences_train = train_df.sentence.values
     sentences_train = ["[CLS] " + s for s in sentences_train]
 
-    sentences_test = test_df.text.values
+    sentences_test = test_df.sentence.values
     sentences_test = ["[CLS] " + s for s in sentences_test]
 
     labels_train = train_df.label.values
