@@ -65,7 +65,7 @@ if __name__ == "__main__":
     run_option = args.run_option
 
     if run_option == 1 or run_option == 3:
-        train_df, test_df = download(args.download_dir)
+        #train_df, test_df = download(args.download_dir)
         train_df.to_pickle('/kaggle/input/sample-skill-extraction/skill_train.pkl')
         test_df.to_pickle('/kaggle/input/sample-skill-extraction/skill_test.pkl')
     if run_option == 1 or run_option == 2:
