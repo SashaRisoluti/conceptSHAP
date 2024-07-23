@@ -92,3 +92,19 @@ def get_sentence_activation(DATAPATH, MODELPATH, batch_size):
 # Save Activations
 def save_activations(activations, DATAPATH):
     np.save(DATAPATH, activations)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+
+    # Required parameters
+    parser.add_argument("--batch_size", type=int, default=64)
+    parser.add_argument("--activation_dir", type=str, required=True,
+                        help="dir of .npy file to save dataset embeddings")
+    parser.add_argument("--train_dir", type=str, required=True,
+                        help="path to .pkl file containing train preprocessed dataset")
+    parser.add_argument("--bert_weights", type=str, required=True,
+                        help="path to BERT config & weights directory")
+    args = parser.parse_args()
+
+    result = get_sentence_activation(args.train_dir, args.bert_weights, args.batch_size)
+    save_activations(result, args.activation_dir)
