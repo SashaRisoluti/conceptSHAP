@@ -3,11 +3,11 @@ import pandas as pd
 import numpy as np
 
 from torch.utils.data import (TensorDataset, DataLoader, RandomSampler, SequentialSampler)
-from transformers import BertTokenizer, BertConfig
-from transformers import BertForSequenceClassification
+from transformers import BertTokenizer, BertConfig, BertForSequenceClassification
 from transformers import AdamW, get_linear_schedule_with_warmup
 from packaging import version
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
 
 import argparse
 import matplotlib
@@ -82,10 +82,14 @@ if __name__ == "__main__":
     sentences_test = ["[CLS] " + s for s in sentences_test]
 
     # Convertiamo i label da float a int
-    train_df.label = train_df.label.apply(lambda x: x*10).values.astype(int)
+    #train_df.label = train_df.label.apply(lambda x: x*10).values.astype(int)
     labels_train = train_df.label.values
-    test_df.label = test_df.label.apply(lambda x: x*10).values.astype(int)
+    #test_df.label = test_df.label.apply(lambda x: x*10).values.astype(int)
     labels_test = test_df.label.values
+
+    label_encoder = LabelEncoder()
+    labels_train = label_encoder.fit_transform(labels_train)
+    labels_test = label_encoder.transform(labels_test)
 
     print("\nThe first training sentence:")
     print(sentences_train[0], 'LABEL:', labels_train[0])
