@@ -33,8 +33,8 @@ def load_data(PATH):
 
 def load_model(PATH):
 
-  # config = BertConfig.from_pretrained(PATH + "/config.json", output_hidden_states=True)
-  # bert_model = BertForSequenceClassification.from_pretrained(PATH + "/pytorch_model.bin", config=config)
+  config = BertConfig.from_pretrained(PATH + "/config.json", output_hidden_states=True)
+  bert_model = BertForSequenceClassification.from_pretrained(PATH + "/pytorch_model.bin", config=config)
   bert_model = BertForSequenceClassification.from_pretrained(PATH) # ../model/imdb_weights
 
 
