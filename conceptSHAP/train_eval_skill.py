@@ -8,6 +8,7 @@ import argparse
 from tensorboardX import SummaryWriter
 from pathlib import Path
 import matplotlib.pyplot as plt
+from sklearn.preprocessing import LabelEncoder
 
 from interpretConcepts import plot_embeddings, save_concepts, concept_analysis
 
