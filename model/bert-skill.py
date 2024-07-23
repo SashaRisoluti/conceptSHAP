@@ -87,7 +87,8 @@ if __name__ == "__main__":
     print("\nThe first training sentence:")
     print(sentences_train[0], 'LABEL:', labels_train[0])
 
-    BERTMODEL = "bert-base-uncased"
+    # Use the Italian BERT model and Tokenizer
+    BERTMODEL = "dbmdz/bert-base-italian-cased"
 
     tokenizer = BertTokenizer.from_pretrained(BERTMODEL, do_lower_case=True)
 
