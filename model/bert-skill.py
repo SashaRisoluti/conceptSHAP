@@ -81,7 +81,10 @@ if __name__ == "__main__":
     sentences_test = test_df.sentence.values
     sentences_test = ["[CLS] " + s for s in sentences_test]
 
+    # Convertiamo i label da float a int
+    train_df.label = train_df.label.apply(lambda x: x*10).values.astype(int)
     labels_train = train_df.label.values
+    test_df.label = test_df.label.apply(lambda x: x*10).values.astype(int)
     labels_test = test_df.label.values
 
     print("\nThe first training sentence:")
