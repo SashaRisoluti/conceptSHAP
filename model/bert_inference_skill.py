@@ -34,8 +34,8 @@ def process_dataframe(_dframe, _tokenizer, batch_size):
     sentences = _dframe.text.values
     label_encoder = LabelEncoder()
     labels = label_encoder.fit_transform(_dframe.label)
-    tokenized = [_tokenizer.encode(s, add_special_tokens=True, max_length=MAX_LEN_TRAIN, truncation=True) for s in sentences]
-    ids = np.array([np.pad(i, (0, MAX_LEN_TRAIN - len(i)), mode='constant') for i in tokenized])
+    tokenized = [_tokenizer.encode(s, add_special_tokens=True, max_length=batch_size, truncation=True) for s in sentences]
+    ids = np.array([np.pad(i, (0, batch_size - len(i)), mode='constant') for i in tokenized])
     amasks = np.array([[float(i > 0) for i in seq] for seq in ids])
 
     inputs_reformatted = torch.tensor(ids)
