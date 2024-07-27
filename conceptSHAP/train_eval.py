@@ -9,7 +9,7 @@ from tensorboardX import SummaryWriter
 from pathlib import Path
 import matplotlib.pyplot as plt
 
-from interpretConcepts import plot_embeddings, save_concepts, concept_analysis
+from interpretConcepts import plot_embeddings, save_concepts, concept_analysis, shap_analysis
 
 def train(args, train_embeddings, train_y_true, h_x, n_concepts, writer, device):
   '''
@@ -183,5 +183,7 @@ if __name__ == "__main__":
 
   # eval concepts
   concept_analysis(small_activations, data_frame)
+
+  shap_analysis(bert_model, data_frame)
 
   writer.close()
