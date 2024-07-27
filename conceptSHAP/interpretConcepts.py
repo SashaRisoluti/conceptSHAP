@@ -1,6 +1,8 @@
 import numpy as np
 import torch
 from collections import Counter
+import shap
+import matplotlib.pyplot as plt
 
 def concept_analysis(train_embeddings, train_data):
     # concepts: (n_concepts, dim)
@@ -41,4 +43,13 @@ def plot_embeddings(train_activations, train_data, senti_list, writer):
 def save_concepts(concept_model):
   concepts = concept_model.concept.detach().cpu().numpy()
   np.save('conceptSHAP/concepts.npy', concepts)
+
+def shap_analysis(model, data):
+    embeddings = model(data)
+
+    explainer = shap.Explainer(model, data)
+    shap_values = explainer(embeddings)
+
+    shap.summary_plot(shap_values, data)
+    plt.savefig('shap_summary_plot.png')
 
