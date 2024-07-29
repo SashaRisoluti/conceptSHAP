@@ -50,8 +50,8 @@ def evaluate(loader):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_dir", type=str, required=True, help="path to save the model to")
-    parser.add_argument("--train_data", type=pandas.core.frame.DataFrame, required=True, help="path to the training data for the entire BERT model")
-    parser.add_argument("--test_data", type=pandas.core.frame.DataFrame, required=True, help="path to the test data for BERT")
+    parser.add_argument("--train_data", required=True, help="path to the training data for the entire BERT model")
+    parser.add_argument("--test_data", required=True, help="path to the test data for BERT")
     args = parser.parse_args()
     ckpt_path = args.model_dir
     #train_path = args.train_data
