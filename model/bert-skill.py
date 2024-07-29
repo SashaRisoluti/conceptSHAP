@@ -50,12 +50,12 @@ def evaluate(loader):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_dir", type=str, required=True, help="path to save the model to")
-    parser.add_argument("--train_data", type=str, required=True, help="path to the training data for the entire BERT model")
-    parser.add_argument("--test_data", type=str, required=True, help="path to the test data for BERT")
+    parser.add_argument("--train_data", type=pandas.core.frame.DataFrame, required=True, help="path to the training data for the entire BERT model")
+    parser.add_argument("--test_data", type=pandas.core.frame.DataFrame, required=True, help="path to the test data for BERT")
     args = parser.parse_args()
     ckpt_path = args.model_dir
-    train_path = args.train_data
-    test_path = args.test_data
+    #train_path = args.train_data
+    #test_path = args.test_data
 
     sns.set()
     matplotlib.use('Agg')
@@ -66,8 +66,10 @@ if __name__ == "__main__":
     print(f'Using PyTorch version: {torch.__version__} Device: {device} {devicename}')
     assert version.parse(torch.__version__) >= version.parse("1.0.0")
 
-    train_df = pd.read_pickle(train_path)
-    test_df = pd.read_pickle(test_path)
+    #train_df = pd.read_pickle(train_path)
+    #test_df = pd.read_pickle(test_path)
+    train_df = args.train_data
+    test_df = args.test_data
 
     print('\nSKILL data loaded:')
     print(f'train: {train_df.shape}')
