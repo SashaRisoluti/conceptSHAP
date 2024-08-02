@@ -128,7 +128,7 @@ def plot_embeddings(train_activations, train_data, label_list, writer):
 
 def save_concepts(concept_model):
     concepts = concept_model.concept.detach().cpu().numpy()
-    no.save('conceptSHAP/concepts.npy', concepts)
+    np.save('conceptSHAP/concepts.npy', concepts)
     print('Concept vectors saved to conceptSHAP/concepts.npy')
 
 def concept_analysis(train_embeddings, train_data):
