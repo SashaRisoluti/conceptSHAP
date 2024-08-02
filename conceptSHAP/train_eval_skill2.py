@@ -134,12 +134,23 @@ def save_concepts(concept_model):
 def concept_analysis(train_embeddings, train_data):
     concepts = torch.from_numpy(np.transpose(np.load('conceptSHAP/concepts.npy')))
     train_embeddings = torch.from_numpy(train_embeddings)
+    
     for i, concept in enumerate(concepts, 1):
         distance = torch.norm(train_embeddings - concept, dim=1)
         knn = distance.topk(150, largest=False).indices
         words = []
         for idx in knn:
-            words += train_data.iloc[int(idx)]['sentence']
+            # Assumiamo che 'sentence' contenga una lista di parole o n-grammi
+            sentence = train_data.iloc[int(idx)]['sentence']
+            if isinstance(sentence, str):
+                # Se è una stringa, la dividiamo in parole
+                words.extend(sentence.split())
+            elif isinstance(sentence, list):
+                # Se è già una lista, la estendiamo direttamente
+                words.extend(sentence)
+            else:
+                print(f"Unexpected type for sentence: {type(sentence)}")
+        
         cx = Counter(words)
         most_occur = cx.most_common(25)
         print(f"Concept {i} most common words:")
@@ -149,8 +160,14 @@ def concept_analysis(train_embeddings, train_data):
     # Calculate silhouette score
     distances = torch.cdist(train_embeddings, concepts)
     labels = torch.argmin(distances, dim=1).numpy()
-    silhouette_avg = silhouette_score(train_embeddings.numpy(), labels)
-    print(f"Silhouette Score: {silhouette_avg}")
+    
+    # Controllo per evitare l'errore del silhouette score
+    unique_labels = np.unique(labels)
+    if len(unique_labels) < 2:
+        print("Warning: Not enough unique labels for silhouette score calculation.")
+    else:
+        silhouette_avg = silhouette_score(train_embeddings.numpy(), labels)
+        print(f"Silhouette Score: {silhouette_avg}")
     
 def shap_analysis(model, data):
     embeddings = model(data)
