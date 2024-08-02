@@ -204,8 +204,8 @@ if __name__ == "__main__":
 
   print("Loading dataset labels...")
   data_frame = pd.read_pickle(args.train_dir)
-  data_frame = data_frame[['text','label']]
-  data_frame.rename(columns={'text':'sentence'}, inplace=True)
+  #data_frame = data_frame[['text','label']]
+  #data_frame.rename(columns={'text':'sentence'}, inplace=True)
   label_encoder = LabelEncoder()
   data_frame.label = label_encoder.fit_transform(data_frame.label)
   label_list = np.array(data_frame['label'])
