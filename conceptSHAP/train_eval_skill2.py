@@ -324,6 +324,6 @@ if __name__ == "__main__":
   plot_embeddings(train_embeddings, data_frame, label_list, writer)
 
   # eval concepts
-  cluster_labels = concept_analysis(small_activations, data_frame)
+  cluster_labels = concept_analysis(small_activations, data_frame, writer)
 
   writer.close()
