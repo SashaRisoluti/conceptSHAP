@@ -201,9 +201,16 @@ def concept_analysis(train_embeddings, train_data, writer):
         cluster_size = np.sum(cluster_labels == i)
         print(f"Cluster {i} size: {cluster_size}")
 
+    # Combine embeddings and concepts for t-SNE
+    combined_data = np.vstack((normalized_embeddings, concepts.numpy()))
+
     # Visualizzazione t-SNE
     tsne = TSNE(n_components=2, random_state=42)
-    embeddings_2d = tsne.fit_transform(normalized_embeddings)
+    combined_2d = tsne.fit_transform(combined_data)
+
+    # Split the results back into embeddings and concepts
+    embeddings_2d = combined_2d[:len(normalized_embeddings)]
+    concept_embeddings_2d = combined_2d[len(normalized_embeddings):]
 
     # Create a DataFrame for easy plotting
     df = pd.DataFrame({
@@ -217,7 +224,6 @@ def concept_analysis(train_embeddings, train_data, writer):
     sns.scatterplot(data=df, x='x', y='y', hue='cluster', palette='deep')
     
     # Add concept points
-    concept_embeddings_2d = tsne.transform(concepts)
     for i, (x, y) in enumerate(concept_embeddings_2d):
         plt.annotate(concept_labels[i], (x, y), xytext=(5, 5), textcoords='offset points', fontsize=8, fontweight='bold')
         plt.plot(x, y, 'ro', markersize=10)
@@ -230,7 +236,7 @@ def concept_analysis(train_embeddings, train_data, writer):
     plt.close()
 
     return cluster_labels
-
+    
 def shap_analysis(model, data):
     embeddings = model(data)
     explainer = shap.Explainer(model, data)
