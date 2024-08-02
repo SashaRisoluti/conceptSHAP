@@ -14,6 +14,14 @@ from sklearn.metrics import silhouette_score
 import seaborn as sns
 from collections import Counter
 import shap
+from sklearn.cluster import KMeans
+
+def clean_word(word):
+    # Rimuove le virgolette singole e doppie all'inizio e alla fine della parola
+    word = word.strip("'\"")
+    # Rimuove la virgola alla fine della parola
+    word = word.rstrip(',')
+    return word
 
 def train(args, train_embeddings, train_y_true, h_x, n_concepts, writer, device):
   '''
@@ -140,14 +148,13 @@ def concept_analysis(train_embeddings, train_data):
         knn = distance.topk(150, largest=False).indices
         words = []
         for idx in knn:
-            # Assumiamo che 'sentence' contenga una lista di parole o n-grammi
             sentence = train_data.iloc[int(idx)]['sentence']
             if isinstance(sentence, str):
                 # Se è una stringa, la dividiamo in parole
-                words.extend(sentence.split())
+                words.extend(clean_word(word) for word in sentence.split())
             elif isinstance(sentence, list):
-                # Se è già una lista, la estendiamo direttamente
-                words.extend(sentence)
+                # Se è già una lista, applichiamo la pulizia a ogni elemento
+                words.extend(clean_word(word) for word in sentence)
             else:
                 print(f"Unexpected type for sentence: {type(sentence)}")
         
@@ -157,17 +164,22 @@ def concept_analysis(train_embeddings, train_data):
         print(most_occur)
         print("\n")
 
-    # Calculate silhouette score
-    distances = torch.cdist(train_embeddings, concepts)
-    labels = torch.argmin(distances, dim=1).numpy()
+    # Calculate silhouette score using K-means
+    n_clusters = len(concepts)
+    kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+    cluster_labels = kmeans.fit_predict(train_embeddings)
     
-    # Controllo per evitare l'errore del silhouette score
-    unique_labels = np.unique(labels)
+    unique_labels = np.unique(cluster_labels)
     if len(unique_labels) < 2:
         print("Warning: Not enough unique labels for silhouette score calculation.")
     else:
-        silhouette_avg = silhouette_score(train_embeddings.numpy(), labels)
+        silhouette_avg = silhouette_score(train_embeddings, cluster_labels)
         print(f"Silhouette Score: {silhouette_avg}")
+
+    # Analisi aggiuntiva dei cluster
+    for i in range(n_clusters):
+        cluster_size = np.sum(cluster_labels == i)
+        print(f"Cluster {i} size: {cluster_size}")
     
 def shap_analysis(model, data):
     embeddings = model(data)
