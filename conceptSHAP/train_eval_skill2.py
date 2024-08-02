@@ -8,13 +8,13 @@ import argparse
 from tensorboardX import SummaryWriter
 from pathlib import Path
 import matplotlib.pyplot as plt
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.manifold import TSNE
 from sklearn.metrics import silhouette_score
 import seaborn as sns
 from collections import Counter
 import shap
-from sklearn.cluster import KMeans
+from sklearn.cluster import DBSCAN
 
 def clean_word(word):
     # Rimuove le virgolette singole e doppie all'inizio e alla fine della parola
@@ -22,6 +22,23 @@ def clean_word(word):
     # Rimuove la virgola alla fine della parola
     word = word.rstrip(',')
     return word
+
+def get_concept_labels(concepts, train_embeddings, train_data, top_n=3):
+    concept_labels = []
+    for concept in concepts:
+        distance = torch.norm(train_embeddings - concept, dim=1)
+        knn = distance.topk(150, largest=False).indices
+        words = []
+        for idx in knn:
+            sentence = train_data.iloc[int(idx)]['sentence']
+            if isinstance(sentence, str):
+                words.extend(clean_word(word) for word in sentence.split())
+            elif isinstance(sentence, list):
+                words.extend(clean_word(word) for word in sentence)
+        cx = Counter(words)
+        top_words = [word for word, _ in cx.most_common(top_n)]
+        concept_labels.append(" ".join(top_words))
+    return concept_labels
 
 def train(args, train_embeddings, train_y_true, h_x, n_concepts, writer, device):
   '''
@@ -139,48 +156,81 @@ def save_concepts(concept_model):
     np.save('conceptSHAP/concepts.npy', concepts)
     print('Concept vectors saved to conceptSHAP/concepts.npy')
 
-def concept_analysis(train_embeddings, train_data):
+def concept_analysis(train_embeddings, train_data, writer):
     concepts = torch.from_numpy(np.transpose(np.load('conceptSHAP/concepts.npy')))
     train_embeddings = torch.from_numpy(train_embeddings)
     
-    for i, concept in enumerate(concepts, 1):
+    concept_labels = get_concept_labels(concepts, train_embeddings, train_data)
+    
+    for i, (concept, label) in enumerate(zip(concepts, concept_labels), 1):
         distance = torch.norm(train_embeddings - concept, dim=1)
         knn = distance.topk(150, largest=False).indices
         words = []
         for idx in knn:
             sentence = train_data.iloc[int(idx)]['sentence']
             if isinstance(sentence, str):
-                # Se è una stringa, la dividiamo in parole
                 words.extend(clean_word(word) for word in sentence.split())
             elif isinstance(sentence, list):
-                # Se è già una lista, applichiamo la pulizia a ogni elemento
                 words.extend(clean_word(word) for word in sentence)
-            else:
-                print(f"Unexpected type for sentence: {type(sentence)}")
         
         cx = Counter(words)
         most_occur = cx.most_common(25)
-        print(f"Concept {i} most common words:")
+        print(f"Concept {i} ({label}) most common words:")
         print(most_occur)
         print("\n")
 
-    # Calculate silhouette score using K-means
-    n_clusters = len(concepts)
-    kmeans = KMeans(n_clusters=n_clusters, random_state=42)
-    cluster_labels = kmeans.fit_predict(train_embeddings)
-    
-    unique_labels = np.unique(cluster_labels)
-    if len(unique_labels) < 2:
-        print("Warning: Not enough unique labels for silhouette score calculation.")
-    else:
-        silhouette_avg = silhouette_score(train_embeddings, cluster_labels)
-        print(f"Silhouette Score: {silhouette_avg}")
+    # Normalize the embeddings
+    scaler = StandardScaler()
+    normalized_embeddings = scaler.fit_transform(train_embeddings)
 
-    # Analisi aggiuntiva dei cluster
+    # Use DBSCAN for clustering
+    dbscan = DBSCAN(eps=0.5, min_samples=5)
+    cluster_labels = dbscan.fit_predict(normalized_embeddings)
+    
+    n_clusters = len(set(cluster_labels)) - (1 if -1 in cluster_labels else 0)
+    print(f"Number of clusters found: {n_clusters}")
+
+    if n_clusters > 1:
+        silhouette_avg = silhouette_score(normalized_embeddings, cluster_labels)
+        print(f"Silhouette Score: {silhouette_avg}")
+    else:
+        print("Not enough clusters for silhouette score calculation.")
+
+    # Analisi dei cluster
     for i in range(n_clusters):
         cluster_size = np.sum(cluster_labels == i)
         print(f"Cluster {i} size: {cluster_size}")
+
+    # Visualizzazione t-SNE
+    tsne = TSNE(n_components=2, random_state=42)
+    embeddings_2d = tsne.fit_transform(normalized_embeddings)
+
+    # Create a DataFrame for easy plotting
+    df = pd.DataFrame({
+        'x': embeddings_2d[:, 0],
+        'y': embeddings_2d[:, 1],
+        'cluster': cluster_labels
+    })
+
+    # Plot
+    plt.figure(figsize=(12, 10))
+    sns.scatterplot(data=df, x='x', y='y', hue='cluster', palette='deep')
     
+    # Add concept points
+    concept_embeddings_2d = tsne.transform(concepts)
+    for i, (x, y) in enumerate(concept_embeddings_2d):
+        plt.annotate(concept_labels[i], (x, y), xytext=(5, 5), textcoords='offset points', fontsize=8, fontweight='bold')
+        plt.plot(x, y, 'ro', markersize=10)
+
+    plt.title('t-SNE visualization of embeddings with cluster labels and concepts')
+    plt.tight_layout()
+    plt.show()
+
+    writer.add_figure('Embeddings Clustering with Concepts', plt.gcf())
+    plt.close()
+
+    return cluster_labels
+
 def shap_analysis(model, data):
     embeddings = model(data)
     explainer = shap.Explainer(model, data)
@@ -274,6 +324,6 @@ if __name__ == "__main__":
   plot_embeddings(train_embeddings, data_frame, label_list, writer)
 
   # eval concepts
-  concept_analysis(small_activations, data_frame)
+  cluster_labels = concept_analysis(small_activations, data_frame)
 
   writer.close()
