@@ -18,6 +18,7 @@ from collections import Counter, defaultdict
 import shap
 from sklearn.cluster import DBSCAN
 import os
+from sklearn.decomposition import PCA
 
 model = SentenceTransformer("BAAI/bge-m3")
 
