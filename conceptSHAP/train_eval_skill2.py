@@ -25,6 +25,17 @@ def get_bge_m3_embedding(texts):
     # Genera embeddings per una lista di testi
     return model.encode(texts, convert_to_tensor=True)
 
+def align_dimensions(concepts, bge_dim=1024):
+    if concepts.shape[1] < bge_dim:
+        # Se i concetti hanno meno dimensioni, proiettiamo nello spazio BGE-M3
+        pca = PCA(n_components=bge_dim)
+        concepts_aligned = pca.fit_transform(concepts)
+    else:
+        # Se i concetti hanno più dimensioni, riduciamo alla dimensione di BGE-M3
+        pca = PCA(n_components=bge_dim)
+        concepts_aligned = pca.fit_transform(concepts)
+    return concepts_aligned
+
 def save_plot(fig, filename):
     """Helper function to save plots as PNG files"""
     if not os.path.exists('plots'):
@@ -40,16 +51,19 @@ def clean_word(word):
     word = word.rstrip(',')
     return word
 
-def get_concept_labels(concepts, train_embeddings, train_data, top_n=3, batch_size=32):
+def get_concept_labels(concepts, train_embeddings, train_data, top_n=3, batch_size=16):
+    # Allinea le dimensioni dei concetti con quelle di BGE-M3
+    concepts_aligned = align_dimensions(concepts.numpy())
+    
     word_embeddings = defaultdict(list)
     
-    # Step 1: Preparare le frasi e le parole uniche
+    # Prepara le frasi e le parole uniche
     all_words = set()
     for sentence in train_data['sentence']:
-        words = sentence.split()  # Assumiamo che 'sentence' sia una stringa
+        words = sentence.split()
         all_words.update(words)
     
-    # Step 2: Genera embeddings per tutte le parole uniche in batch
+    # Genera embeddings per tutte le parole uniche in batch
     word_list = list(all_words)
     word_embeddings_dict = {}
     
@@ -59,13 +73,12 @@ def get_concept_labels(concepts, train_embeddings, train_data, top_n=3, batch_si
         for word, embedding in zip(batch, batch_embeddings):
             word_embeddings_dict[word] = embedding.cpu().numpy()
     
-    # Step 3: Calcola la similarità coseno tra i concetti e le parole
+    # Calcola la similarità coseno tra i concetti allineati e le parole
     concept_labels = []
-    for concept in concepts:
-        concept_tensor = torch.tensor(concept).unsqueeze(0)
+    for concept in concepts_aligned:
         similarities = {}
         for word, embedding in word_embeddings_dict.items():
-            similarity = cosine_similarity(concept_tensor.cpu().numpy(), embedding.reshape(1, -1))[0][0]
+            similarity = cosine_similarity(concept.reshape(1, -1), embedding.reshape(1, -1))[0][0]
             similarities[word] = similarity
         
         # Get top N similar words
