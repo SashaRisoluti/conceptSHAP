@@ -15,6 +15,7 @@ import seaborn as sns
 from collections import Counter
 import shap
 from sklearn.cluster import DBSCAN
+import os
 
 def save_plot(fig, filename):
     """Helper function to save plots as PNG files"""
