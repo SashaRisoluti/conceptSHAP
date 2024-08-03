@@ -10,7 +10,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.manifold import TSNE
-from sklearn.metrics import silhouette_score, cosine_similarity
+from sklearn.metrics import silhouette_score
+from sklearn.metrics.pairwise import cosine_similarity
 import seaborn as sns
 from collections import Counter, defaultdict
 import shap
