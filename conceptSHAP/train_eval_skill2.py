@@ -16,6 +16,14 @@ from collections import Counter
 import shap
 from sklearn.cluster import DBSCAN
 
+def save_plot(fig, filename):
+    """Helper function to save plots as PNG files"""
+    if not os.path.exists('plots'):
+        os.makedirs('plots')
+    filepath = os.path.join('plots', filename)
+    fig.savefig(filepath, format='png', dpi=300, bbox_inches='tight')
+    print(f"Plot saved as {filepath}")
+    
 def clean_word(word):
     # Rimuove le virgolette singole e doppie all'inizio e alla fine della parola
     word = word.strip("'\"")
@@ -119,9 +127,14 @@ def train(args, train_embeddings, train_y_true, h_x, n_concepts, writer, device)
       writer.add_scalar('norm_metrics', metrics[0].data.item(), n_iter)
       writer.add_scalar('concept completeness', completeness.data.item(), n_iter)
       if conceptSHAP != []:
-        fig = plt.figure()
-        plt.bar(list(range(len(conceptSHAP))), conceptSHAP)
+        fig, ax = plt.subplots()
+        ax.bar(list(range(len(conceptSHAP))), conceptSHAP)
+        ax.set_title('ConceptSHAP')
+        ax.set_xlabel('Concept')
+        ax.set_ylabel('SHAP value')
+        save_plot(fig, f'conceptSHAP_{n_iter}.png')
         writer.add_figure('conceptSHAP', fig, n_iter)
+        plt.close(fig)
 
       # update batch indices
       batch_start += batch_size
@@ -142,14 +155,18 @@ def plot_embeddings(train_activations, train_data, label_list, writer):
     tsne = TSNE(n_components=2, random_state=42)
     embeddings_2d = tsne.fit_transform(embed)
 
-    plt.figure(figsize=(10, 8))
-    scatter = plt.scatter(embeddings_2d[:NUM_PLOT, 0], embeddings_2d[:NUM_PLOT, 1], c=label_list[:NUM_PLOT], cmap='viridis')
-    plt.scatter(embeddings_2d[NUM_PLOT:, 0], embeddings_2d[NUM_PLOT:, 1], c='red', marker='x', s=100, label='Concepts')
-    plt.colorbar(scatter)
-    plt.legend()
-    plt.title('t-SNE visualization of embeddings and concepts')
-    writer.add_figure('Embeddings and Concepts t-SNE', plt.gcf())
-    plt.close()
+    fig, ax = plt.subplots(figsize=(10, 8))
+    scatter = ax.scatter(embeddings_2d[:NUM_PLOT, 0], embeddings_2d[:NUM_PLOT, 1], c=label_list[:NUM_PLOT], cmap='viridis')
+    ax.scatter(embeddings_2d[NUM_PLOT:, 0], embeddings_2d[NUM_PLOT:, 1], c='red', marker='x', s=100, label='Concepts')
+    plt.colorbar(scatter, ax=ax)
+    ax.legend()
+    ax.set_title('t-SNE visualization of embeddings and concepts')
+    
+    # Salva il grafico come file PNG
+    save_plot(fig, 'embeddings_tsne.png')
+
+    writer.add_figure('Embeddings and Concepts t-SNE', fig)
+    plt.close(fig)
 
 def save_concepts(concept_model):
     concepts = concept_model.concept.detach().cpu().numpy()
@@ -220,20 +237,22 @@ def concept_analysis(train_embeddings, train_data, writer):
     })
 
     # Plot
-    plt.figure(figsize=(12, 10))
-    sns.scatterplot(data=df, x='x', y='y', hue='cluster', palette='deep')
+    fig, ax = plt.subplots(figsize=(12, 10))
+    sns.scatterplot(data=df, x='x', y='y', hue='cluster', palette='deep', ax=ax)
     
     # Add concept points
     for i, (x, y) in enumerate(concept_embeddings_2d):
-        plt.annotate(concept_labels[i], (x, y), xytext=(5, 5), textcoords='offset points', fontsize=8, fontweight='bold')
-        plt.plot(x, y, 'ro', markersize=10)
+        ax.annotate(concept_labels[i], (x, y), xytext=(5, 5), textcoords='offset points', fontsize=8, fontweight='bold')
+        ax.plot(x, y, 'ro', markersize=10)
 
-    plt.title('t-SNE visualization of embeddings with cluster labels and concepts')
+    ax.set_title('t-SNE visualization of embeddings with cluster labels and concepts')
     plt.tight_layout()
-    plt.show()
+    
+    # Salva il grafico come file PNG
+    save_plot(fig, 'tsne_visualization.png')
 
-    writer.add_figure('Embeddings Clustering with Concepts', plt.gcf())
-    plt.close()
+    writer.add_figure('Embeddings Clustering with Concepts', fig)
+    plt.close(fig)
 
     return cluster_labels
     
