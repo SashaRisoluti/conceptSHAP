@@ -3,6 +3,7 @@ from conceptNet import ConceptNet
 import numpy as np
 import pandas as pd
 from sentence_transformers import SentenceTransformer
+from transformers import BertForSequenceClassification
 from tqdm import tqdm
 import argparse
 from tensorboardX import SummaryWriter
