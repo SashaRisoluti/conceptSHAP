@@ -2,7 +2,7 @@ import torch
 from conceptNet import ConceptNet
 import numpy as np
 import pandas as pd
-from transformers import BertForSequenceClassification, BertTokenizer
+from sentence_transformers import SentenceTransformers
 from tqdm import tqdm
 import argparse
 from tensorboardX import SummaryWriter
@@ -10,12 +10,18 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.manifold import TSNE
-from sklearn.metrics import silhouette_score
+from sklearn.metrics import silhouette_score, cosine_similarity
 import seaborn as sns
-from collections import Counter
+from collections import Counter, defaultdict
 import shap
 from sklearn.cluster import DBSCAN
 import os
+
+model = SentenceTransformer("BAAI/bge-m3")
+
+def get_bge_m3_embedding(texts):
+    # Genera embeddings per una lista di testi
+    return model.encode(texts, convert_to_tensor=True)
 
 def save_plot(fig, filename):
     """Helper function to save plots as PNG files"""
@@ -32,21 +38,38 @@ def clean_word(word):
     word = word.rstrip(',')
     return word
 
-def get_concept_labels(concepts, train_embeddings, train_data, top_n=3):
+def get_concept_labels(concepts, train_embeddings, train_data, top_n=3, batch_size=32):
+    word_embeddings = defaultdict(list)
+    
+    # Step 1: Preparare le frasi e le parole uniche
+    all_words = set()
+    for sentence in train_data['sentence']:
+        words = sentence.split()  # Assumiamo che 'sentence' sia una stringa
+        all_words.update(words)
+    
+    # Step 2: Genera embeddings per tutte le parole uniche in batch
+    word_list = list(all_words)
+    word_embeddings_dict = {}
+    
+    for i in range(0, len(word_list), batch_size):
+        batch = word_list[i:i+batch_size]
+        batch_embeddings = get_bge_m3_embedding(batch)
+        for word, embedding in zip(batch, batch_embeddings):
+            word_embeddings_dict[word] = embedding.cpu().numpy()
+    
+    # Step 3: Calcola la similarità coseno tra i concetti e le parole
     concept_labels = []
     for concept in concepts:
-        distance = torch.norm(train_embeddings - concept, dim=1)
-        knn = distance.topk(150, largest=False).indices
-        words = []
-        for idx in knn:
-            sentence = train_data.iloc[int(idx)]['sentence']
-            if isinstance(sentence, str):
-                words.extend(clean_word(word) for word in sentence.split())
-            elif isinstance(sentence, list):
-                words.extend(clean_word(word) for word in sentence)
-        cx = Counter(words)
-        top_words = [word for word, _ in cx.most_common(top_n)]
-        concept_labels.append(" ".join(top_words))
+        concept_tensor = torch.tensor(concept).unsqueeze(0)
+        similarities = {}
+        for word, embedding in word_embeddings_dict.items():
+            similarity = cosine_similarity(concept_tensor.cpu().numpy(), embedding.reshape(1, -1))[0][0]
+            similarities[word] = similarity
+        
+        # Get top N similar words
+        top_words = sorted(similarities.items(), key=lambda x: x[1], reverse=True)[:top_n]
+        concept_labels.append(" ".join([word for word, _ in top_words]))
+    
     return concept_labels
 
 def train(args, train_embeddings, train_y_true, h_x, n_concepts, writer, device):
@@ -176,11 +199,11 @@ def save_concepts(concept_model):
 
 def concept_analysis(train_embeddings, train_data, writer):
     concepts = torch.from_numpy(np.transpose(np.load('conceptSHAP/concepts.npy')))
-    train_embeddings = torch.from_numpy(train_embeddings)
     
     concept_labels = get_concept_labels(concepts, train_embeddings, train_data)
     
     for i, (concept, label) in enumerate(zip(concepts, concept_labels), 1):
+        print(f"Concept {i} ({label}) most common words:")
         distance = torch.norm(train_embeddings - concept, dim=1)
         knn = distance.topk(150, largest=False).indices
         words = []
@@ -226,7 +249,6 @@ def concept_analysis(train_embeddings, train_data, writer):
     tsne = TSNE(n_components=2, random_state=42)
     combined_2d = tsne.fit_transform(combined_data)
 
-    # Split the results back into embeddings and concepts
     embeddings_2d = combined_2d[:len(normalized_embeddings)]
     concept_embeddings_2d = combined_2d[len(normalized_embeddings):]
 
@@ -238,22 +260,24 @@ def concept_analysis(train_embeddings, train_data, writer):
     })
 
     # Plot
-    fig, ax = plt.subplots(figsize=(12, 10))
-    sns.scatterplot(data=df, x='x', y='y', hue='cluster', palette='deep', ax=ax)
+    plt.figure(figsize=(12, 10))
+    scatter = sns.scatterplot(data=df, x='x', y='y', hue='cluster', palette='deep', alpha=0.6)
     
-    # Add concept points
+    # Add concept points with different colors
+    concept_colors = plt.cm.rainbow(np.linspace(0, 1, len(concepts)))
     for i, (x, y) in enumerate(concept_embeddings_2d):
-        ax.annotate(concept_labels[i], (x, y), xytext=(5, 5), textcoords='offset points', fontsize=8, fontweight='bold')
-        ax.plot(x, y, 'ro', markersize=10)
+        plt.scatter(x, y, c=[concept_colors[i]], s=100, label=f'Concept {i+1}: {concept_labels[i]}')
+        plt.annotate(f'C{i+1}', (x, y), xytext=(5, 5), textcoords='offset points', fontsize=8, fontweight='bold')
 
-    ax.set_title('t-SNE visualization of embeddings with cluster labels and concepts')
+    plt.title('t-SNE visualization of embeddings with cluster labels and concepts')
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
     plt.tight_layout()
     
     # Salva il grafico come file PNG
-    save_plot(fig, 'tsne_visualization.png')
+    save_plot(plt.gcf(), 'tsne_visualization.png')
 
-    writer.add_figure('Embeddings Clustering with Concepts', fig)
-    plt.close(fig)
+    writer.add_figure('Embeddings Clustering with Concepts', plt.gcf())
+    plt.close()
 
     return cluster_labels
     
