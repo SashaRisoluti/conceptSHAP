@@ -9,8 +9,7 @@ class ConceptNet(nn.Module):
     def __init__(self, n_concepts, train_embeddings):
         super(ConceptNet, self).__init__()
         embedding_dim = train_embeddings.shape[1]
-        # random init using uniform dist
-        self.concept = nn.Parameter(self.init_concept(embedding_dim, n_concepts), requires_grad=True)
+        self.concept = nn.Parameter(torch.randn(embedding_dim, n_concepts))
         self.n_concepts = n_concepts
         self.train_embeddings = train_embeddings.transpose(0, 1) # (dim, all_data_size)
 
