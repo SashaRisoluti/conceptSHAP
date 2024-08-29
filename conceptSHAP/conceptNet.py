@@ -63,8 +63,9 @@ class ConceptNet(nn.Module):
         L_sparse_2_new = torch.mean(all_concept_dot * mask)
 
         norm_metrics = torch.mean(all_concept_dot * torch.eye(self.n_concepts).cuda())
+        similarity_penality = torch.mean((torch.abs(torch.matmul(self.concept.T, self.concept) - torch.eye(self.n_concepts).to(self.concept.device)))
 
-        return orig_pred, y_pred, L_sparse_1_new, L_sparse_2_new, [norm_metrics]
+        return orig_pred, y_pred, L_sparse_1_new, L_sparse_2_new, [norm_metrics, similarity_penality]
 
     def loss(self, train_embedding, train_y_true, h_x, regularize, doConceptSHAP, l_1, l_2, topk):
         """
@@ -125,7 +126,7 @@ class ConceptNet(nn.Module):
                 conceptSHAP.append(sum)
 
         if regularize:
-            final_loss = pred_loss + (l_1 * L_sparse_1_new * -1) + (l_2 * L_sparse_2_new)
+            final_loss = pred_loss + (l_1 * L_sparse_1_new * -1) + (l_2 * L_sparse_2_new) + (0.1 * similarity_penality)
         else:
             final_loss = pred_loss
 
