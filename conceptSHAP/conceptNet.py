@@ -6,7 +6,7 @@ import math
 
 class ConceptNet(nn.Module):
 
-    def __init__(self, n_concepts, train_embeddings):
+    def __init__(self, n_concepts, train_embeddings, num_classes):
         super(ConceptNet, self).__init__()
         embedding_dim = train_embeddings.shape[1]
         self.concept = nn.Parameter(torch.randn(embedding_dim, n_concepts))
