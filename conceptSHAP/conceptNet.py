@@ -18,6 +18,14 @@ class ConceptNet(nn.Module):
         r_2 = 0.5
         concept = (r_2 - r_1) * torch.rand(embedding_dim, n_concepts) + r_1
         return concept
+    def get_top_words_for_concept(self, concept_idx, train_embedding, topk):
+        concept = self.concept[:, concept_idx]
+        similarities = torch.mm(train_embedding, concept.unsqueeze(1)).squeeze()
+        top_indices = torch.topk(similarities, topk).indices
+        
+        # Assumendo che tu abbia accesso al vocabolario
+        vocab = list(self.tokenizer.get_vocab().keys())
+        return [vocab[idx] for idx in top_indices]
 
     def forward(self, train_embedding, h_x, topk):
         """
@@ -65,19 +73,22 @@ class ConceptNet(nn.Module):
         norm_metrics = torch.mean(all_concept_dot * torch.eye(self.n_concepts).cuda())
         similarity_penality = torch.mean(torch.abs(torch.matmul(self.concept.T, self.concept) - torch.eye(self.n_concepts).to(self.concept.device)))
 
-        return orig_pred, y_pred, L_sparse_1_new, L_sparse_2_new, [norm_metrics, similarity_penality]
+        print("Concetti creati:")
+        for i in range(self.n_concepts):
+            top_words = self.get_top_words_for_concept(i, train_embedding, topk)
+            print(f"Concept {i+1}: {', '.join(top_words)}")
+        
+        return orig_pred, y_pred, L_sparse_1_new, L_sparse_2_new, metrics
 
     def loss(self, train_embedding, train_y_true, h_x, regularize, doConceptSHAP, l_1, l_2, topk):
-        """
-        This function will be called externally to feed data and get the loss
-        """
-        # Note: it is important to MAKE SURE L2 GOES DOWN! that will let concepts separate from each other
-
         orig_pred, y_pred, L_sparse_1_new, L_sparse_2_new, metrics = self.forward(train_embedding, h_x, topk)
-
+        
         ce_loss = nn.CrossEntropyLoss()
         loss_new = ce_loss(y_pred, train_y_true)
         pred_loss = torch.mean(loss_new)
+        
+        # Calcola la diversità dei concetti
+        concept_diversity = self.calculate_concept_diversity()
 
         # completeness score
         def n(y_pred):
@@ -126,11 +137,12 @@ class ConceptNet(nn.Module):
                 conceptSHAP.append(sum)
 
         if regularize:
-            final_loss = pred_loss + (l_1 * L_sparse_1_new * -1) + (l_2 * L_sparse_2_new) + (0.1 * similarity_penality)
+            diversity_weight = 0.1  # Puoi regolare questo peso
+            final_loss = pred_loss + (l_1 * L_sparse_1_new * -1) + (l_2 * L_sparse_2_new) + (0.1 * similarity_penality) - (diversity_weight * concept_diversity)
         else:
             final_loss = pred_loss
-
-        return completeness, conceptSHAP, final_loss, pred_loss, L_sparse_1_new, L_sparse_2_new, metrics
+        
+        return completeness, conceptSHAP, final_loss, pred_loss, L_sparse_1_new, L_sparse_2_new, metrics, concept_diversity
 
     def powerset(self, iterable):
         "powerset([1,2,3]) --> [1], [2], [3], [1, 2], [1, 3], [2, 3], [1, 2, 3]]"
