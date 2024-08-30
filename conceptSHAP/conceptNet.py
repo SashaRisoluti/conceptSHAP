@@ -11,7 +11,8 @@ class ConceptNet(nn.Module):
         embedding_dim = train_embeddings.shape[1]
         self.concept = nn.Parameter(torch.randn(embedding_dim, n_concepts))
         self.n_concepts = n_concepts
-        self.train_embeddings = train_embeddings.transpose(0, 1) # (dim, all_data_size)
+        self.train_embeddings = train_embeddings.transpose(0, 1)
+        self.num_classes = num_classes
 
     def init_concept(self, embedding_dim, n_concepts):
         r_1 = -0.5
@@ -37,7 +38,8 @@ class ConceptNet(nn.Module):
         proj = proj_matrix @ train_embedding.T  # (embedding_dim x batch_size)
 
         # passing projected activations through rest of model
-        y_pred = h_x(proj.T)
+        y_pred = torch.nn.functional.linear(proj.T, h_x.weight[:self.num_classes], h_x.bias[:self.num_classes])
+
         orig_pred = h_x(train_embedding)
 
         # Calculate the regularization terms as in new version of paper
