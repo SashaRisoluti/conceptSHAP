@@ -3,6 +3,7 @@ import torch.nn as nn
 from itertools import chain, combinations
 import numpy as np
 import math
+import torch.nn.functional as F
 
 class ConceptNet(nn.Module):
 
@@ -38,7 +39,7 @@ class ConceptNet(nn.Module):
         proj = proj_matrix @ train_embedding.T  # (embedding_dim x batch_size)
 
         # passing projected activations through rest of model
-        y_pred = torch.nn.functional.linear(proj.T, h_x.weight[:self.num_classes], h_x.bias[:self.num_classes])
+       y_pred = torch.nn.functional.linear(proj.T, h_x.weight, h_x.bias)
 
         orig_pred = h_x(train_embedding)
 
@@ -140,10 +141,10 @@ class ConceptNet(nn.Module):
 
         if regularize:
             diversity_weight = 0.1  # Puoi regolare questo peso
-            final_loss = pred_loss + (l_1 * L_sparse_1_new * -1) + (l_2 * L_sparse_2_new) + (0.1 * similarity_penality) - (diversity_weight * concept_diversity)
+            final_loss = pred_loss + (l_1 * L_sparse_1_new * -1) + (l_2 * L_sparse_2_new) - (diversity_weight * concept_diversity)
         else:
             final_loss = pred_loss
-        
+
         return completeness, conceptSHAP, final_loss, pred_loss, L_sparse_1_new, L_sparse_2_new, metrics, concept_diversity
 
     def powerset(self, iterable):
@@ -151,3 +152,9 @@ class ConceptNet(nn.Module):
         s = list(iterable)
         pset = chain.from_iterable(combinations(s, r) for r in range(0, len(s) + 1))
         return [list(i) for i in list(pset)]
+        
+    def calculate_concept_diversity(self):
+        normalized_concepts = F.normalize(self.concept, dim=0)
+        similarity_matrix = torch.mm(normalized_concepts.t(), normalized_concepts)
+        diversity = torch.mean(1 - torch.abs(similarity_matrix - torch.eye(self.n_concepts, device=self.concept.device)))
+        return diversity
