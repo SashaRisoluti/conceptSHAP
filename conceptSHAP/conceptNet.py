@@ -6,14 +6,15 @@ import math
 import torch.nn.functional as F
 
 class ConceptNet(nn.Module):
-
-    def __init__(self, n_concepts, train_embeddings, num_classes):
+    
+    def __init__(self, n_concepts, train_embeddings, num_classes, bge_model):
         super(ConceptNet, self).__init__()
         embedding_dim = train_embeddings.shape[1]
         self.concept = nn.Parameter(torch.randn(embedding_dim, n_concepts))
         self.n_concepts = n_concepts
         self.train_embeddings = train_embeddings.transpose(0, 1)
         self.num_classes = num_classes
+        self.bge_model = bge_model
 
     def init_concept(self, embedding_dim, n_concepts):
         r_1 = -0.5
@@ -25,9 +26,10 @@ class ConceptNet(nn.Module):
         similarities = torch.mm(train_embedding, concept.unsqueeze(1)).squeeze()
         top_indices = torch.topk(similarities, topk).indices
         
-        # Assumendo che tu abbia accesso al vocabolario
-        vocab = list(self.tokenizer.get_vocab().keys())
-        return [vocab[idx] for idx in top_indices]
+        # Usa il tokenizer del modello BGE
+        tokenizer = self.bge_model.tokenizer
+        all_tokens = tokenizer.tokenize(' '.join(train_embedding))
+        return [all_tokens[idx] for idx in top_indices if idx < len(all_tokens)]
 
     def forward(self, train_embedding, h_x, topk):
         """
@@ -89,9 +91,6 @@ class ConceptNet(nn.Module):
         ce_loss = nn.CrossEntropyLoss()
         loss_new = ce_loss(y_pred, train_y_true)
         pred_loss = torch.mean(loss_new)
-        
-        # Calcola la diversità dei concetti
-        concept_diversity = self.calculate_concept_diversity()
 
         # completeness score
         def n(y_pred):
@@ -139,12 +138,14 @@ class ConceptNet(nn.Module):
                     sum += norm * (score1.data.item() - score2.data.item())
                 conceptSHAP.append(sum)
 
+        concept_diversity = self.calculate_concept_diversity()
+
         if regularize:
             diversity_weight = 0.1  # Puoi regolare questo peso
             final_loss = pred_loss + (l_1 * L_sparse_1_new * -1) + (l_2 * L_sparse_2_new) - (diversity_weight * concept_diversity)
         else:
             final_loss = pred_loss
-
+    
         return completeness, conceptSHAP, final_loss, pred_loss, L_sparse_1_new, L_sparse_2_new, metrics, concept_diversity
 
     def powerset(self, iterable):
