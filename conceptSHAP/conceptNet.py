@@ -87,9 +87,8 @@ class ConceptNet(nn.Module):
         metrics = [norm_metrics, similarity_penality]
 
         print("Concetti creati:")
-        for i in range(self.n_concepts):
-            top_words = self.get_top_words_for_concept(i, train_embedding, topk)
-            print(f"Concept {i+1}: {', '.join(top_words)}")
+        top_words = self.get_top_words_for_concept(1, train_embedding, topk)
+        print(f"Concept {1}: {', '.join(top_words)}")
         
         return orig_pred, y_pred, L_sparse_1_new, L_sparse_2_new, metrics
 
