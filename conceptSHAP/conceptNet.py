@@ -11,7 +11,7 @@ class ConceptNet(nn.Module):
         embedding_dim = train_embeddings.shape[1]
         self.concept = nn.Parameter(torch.randn(embedding_dim, n_concepts))
         self.n_concepts = n_concepts
-        self.train_embeddings = train_embeddings.transpose(0, 1)
+        self.train_embeddings = train_embeddings
         self.num_classes = num_classes
         self.bge_model = bge_model
         self.original_texts = original_texts
@@ -23,8 +23,18 @@ class ConceptNet(nn.Module):
         return concept
     def get_top_words_for_concept(self, concept_idx, train_embedding, topk):
         concept = self.concept[:, concept_idx]
+        
+        # Controlla se train_embedding è un singolo embedding o un batch
+        if train_embedding.dim() == 1:
+            train_embedding = train_embedding.unsqueeze(0)
+        
         similarities = torch.mm(train_embedding, concept.unsqueeze(1)).squeeze()
-        top_indices = torch.topk(similarities, topk).indices
+        
+        # Se abbiamo un batch, prendiamo la media delle similarità
+        if similarities.dim() > 1:
+            similarities = similarities.mean(dim=0)
+        
+        top_indices = torch.topk(similarities, min(topk, len(similarities))).indices
         
         # Usa i testi originali invece degli embedding
         top_texts = [self.original_texts[idx] for idx in top_indices]
@@ -94,7 +104,7 @@ class ConceptNet(nn.Module):
         concept_words = []
     
         for i in range(self.n_concepts):
-            top_words = self.get_top_words_for_concept(i, self.train_embeddings, 25)
+            top_words = self.get_top_words_for_concept(i, self.train_embeddings.T, 25)
             concept_words.append([(word, 1) for word in top_words])  # Simuliamo il conteggio
             all_words.update(top_words)
         
