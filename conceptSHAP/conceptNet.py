@@ -39,7 +39,7 @@ class ConceptNet(nn.Module):
         proj = proj_matrix @ train_embedding.T  # (embedding_dim x batch_size)
 
         # passing projected activations through rest of model
-       y_pred = torch.nn.functional.linear(proj.T, h_x.weight, h_x.bias)
+        y_pred = torch.nn.functional.linear(proj.T, h_x.weight, h_x.bias)
 
         orig_pred = h_x(train_embedding)
 
