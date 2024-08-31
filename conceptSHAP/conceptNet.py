@@ -162,8 +162,3 @@ class ConceptNet(nn.Module):
         pset = chain.from_iterable(combinations(s, r) for r in range(0, len(s) + 1))
         return [list(i) for i in list(pset)]
         
-    def calculate_concept_diversity(self):
-        normalized_concepts = F.normalize(self.concept, dim=0)
-        similarity_matrix = torch.mm(normalized_concepts.t(), normalized_concepts)
-        diversity = torch.mean(1 - torch.abs(similarity_matrix - torch.eye(self.n_concepts, device=self.concept.device)))
-        return diversity
