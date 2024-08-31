@@ -11,7 +11,7 @@ class ConceptNet(nn.Module):
         embedding_dim = train_embeddings.shape[1]
         self.concept = nn.Parameter(torch.randn(embedding_dim, n_concepts))
         self.n_concepts = n_concepts
-        self.train_embeddings = train_embeddings
+        self.train_embeddings = train_embeddings.T
         self.num_classes = num_classes
         self.bge_model = bge_model
         self.original_texts = original_texts
@@ -48,34 +48,35 @@ class ConceptNet(nn.Module):
         return unique_tokens[:topk]
 
     def forward(self, train_embedding, h_x, topk):
-        """
-        train_embedding: shape (bs, embedding_dim)
-        """
+        print(f"train_embedding shape: {train_embedding.shape}")
+        print(f"self.train_embeddings shape: {self.train_embeddings.shape}")
+        print(f"self.concept shape: {self.concept.shape}")
         # calculating projection of train_embedding onto the concept vector space
         proj_matrix = (self.concept @ torch.inverse((self.concept.T @ self.concept))) \
                       @ self.concept.T # (embedding_dim x embedding_dim)
         proj = proj_matrix @ train_embedding.T  # (embedding_dim x batch_size)
-
+    
         # passing projected activations through rest of model
         y_pred = torch.nn.functional.linear(proj.T, h_x.weight, h_x.bias)
-
+    
         orig_pred = h_x(train_embedding)
-
+    
         # Calculate the regularization terms as in new version of paper
         k = topk # this is a tunable parameter
-
+    
         ### calculate first regularization term, to be maximized
         # 1. find the top k nearest neighbour
         all_concept_knns = []
         for concept_idx in range(self.n_concepts):
             c = self.concept[:, concept_idx].unsqueeze(dim=1) # (activation_dim, 1)
-
+    
             # euc dist
             distance = torch.norm(self.train_embeddings - c, dim=0) # (num_total_activations)
             knn = distance.topk(k, largest=False)
             indices = knn.indices # (k)
             knn_activations = self.train_embeddings[:, indices] # (activation_dim, k)
             all_concept_knns.append(knn_activations)
+
 
         # 2. calculate the avg dot product for each concept with each of its knn
         L_sparse_1_new = 0.0
