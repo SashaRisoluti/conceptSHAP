@@ -6,8 +6,7 @@ import math
 import torch.nn.functional as F
 
 class ConceptNet(nn.Module):
-    
-    def __init__(self, n_concepts, train_embeddings, num_classes, bge_model):
+    def __init__(self, n_concepts, train_embeddings, num_classes, bge_model, original_texts):
         super(ConceptNet, self).__init__()
         embedding_dim = train_embeddings.shape[1]
         self.concept = nn.Parameter(torch.randn(embedding_dim, n_concepts))
@@ -15,6 +14,7 @@ class ConceptNet(nn.Module):
         self.train_embeddings = train_embeddings.transpose(0, 1)
         self.num_classes = num_classes
         self.bge_model = bge_model
+        self.original_texts = original_texts
 
     def init_concept(self, embedding_dim, n_concepts):
         r_1 = -0.5
@@ -26,10 +26,16 @@ class ConceptNet(nn.Module):
         similarities = torch.mm(train_embedding, concept.unsqueeze(1)).squeeze()
         top_indices = torch.topk(similarities, topk).indices
         
-        # Usa il tokenizer del modello BGE
+        # Usa i testi originali invece degli embedding
+        top_texts = [self.original_texts[idx] for idx in top_indices]
+        
+        # Tokenizza i testi più simili
         tokenizer = self.bge_model.tokenizer
-        all_tokens = tokenizer.tokenize(' '.join(train_embedding))
-        return [all_tokens[idx] for idx in top_indices if idx < len(all_tokens)]
+        all_tokens = [token for text in top_texts for token in tokenizer.tokenize(text)]
+        
+        # Prendi le prime topk parole uniche
+        unique_tokens = list(dict.fromkeys(all_tokens))
+        return unique_tokens[:topk]
 
     def forward(self, train_embedding, h_x, topk):
         """
