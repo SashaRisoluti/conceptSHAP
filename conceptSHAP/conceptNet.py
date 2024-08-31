@@ -85,10 +85,6 @@ class ConceptNet(nn.Module):
         similarity_penality = torch.mean(torch.abs(torch.matmul(self.concept.T, self.concept) - torch.eye(self.n_concepts).to(self.concept.device)))
 
         metrics = [norm_metrics, similarity_penality]
-
-        print("Concetti creati:")
-        top_words = self.get_top_words_for_concept(1, train_embedding, topk)
-        print(f"Concept {1}: {', '.join(top_words)}")
         
         return orig_pred, y_pred, L_sparse_1_new, L_sparse_2_new, metrics
 
