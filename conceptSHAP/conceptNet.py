@@ -88,6 +88,24 @@ class ConceptNet(nn.Module):
         
         return orig_pred, y_pred, L_sparse_1_new, L_sparse_2_new, metrics
 
+    
+    def calculate_concept_diversity(self):
+        all_words = set()
+        concept_words = []
+    
+        for i in range(self.n_concepts):
+            top_words = self.get_top_words_for_concept(i, self.train_embeddings, 25)
+            concept_words.append([(word, 1) for word in top_words])  # Simuliamo il conteggio
+            all_words.update(top_words)
+        
+        unique_words = 0
+        for concept in concept_words:
+            concept_words_set = set([word for word, _ in concept])
+            unique_words += len(concept_words_set - (all_words - concept_words_set))
+        
+        diversity = unique_words / self.n_concepts
+        return diversity
+    
     def loss(self, train_embedding, train_y_true, h_x, regularize, doConceptSHAP, l_1, l_2, topk):
         orig_pred, y_pred, L_sparse_1_new, L_sparse_2_new, metrics = self.forward(train_embedding, h_x, topk)
         
