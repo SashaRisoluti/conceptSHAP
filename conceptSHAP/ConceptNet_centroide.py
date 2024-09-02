@@ -178,7 +178,7 @@ class ConceptNet(nn.Module):
 
         if regularize:
             diversity_weight = 0.1
-            centroid_weight = 0.1  # Puoi regolare questo peso
+            centroid_weight = 0.5  # Puoi regolare questo peso
             final_loss = pred_loss + (l_1 * L_sparse_1_new * -1) + (l_2 * L_sparse_2_new) - (diversity_weight * concept_diversity) + (centroid_weight * centroid_penalty)
         else:
             final_loss = pred_loss
