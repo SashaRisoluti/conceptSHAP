@@ -130,26 +130,23 @@ class ConceptNet(nn.Module):
         ce_loss = nn.CrossEntropyLoss()
         loss_new = ce_loss(y_pred, train_y_true)
         pred_loss = torch.mean(loss_new)
-
+    
         # completeness score
         def n(y_pred):
             orig_correct = torch.sum(train_y_true == torch.argmax(orig_pred, axis=1))
             new_correct = torch.sum(train_y_true == torch.argmax(y_pred, axis=1))
             return torch.div(new_correct - (1/self.n_concepts), orig_correct - (1/self.n_concepts))
-
+    
         completeness = n(y_pred)
-
         conceptSHAP = []
+    
         if doConceptSHAP:
             def proj(concept):
                 proj_matrix = (concept @ torch.inverse((concept.T @ concept))) \
                               @ concept.T  # (embedding_dim x embedding_dim)
                 proj = proj_matrix @ train_embedding.T  # (embedding_dim x batch_size)
-
-                # Usa il layer lineare invece di h_x
                 return self.linear(proj.T)
-
-            # shapley score (note for n_concepts > 10, this is very inefficient to calculate)
+    
             c_id = list(range(len(self.concept.T)))
             for idx in c_id:
                 exclude = [x for x in c_id if x != idx]
@@ -157,32 +154,33 @@ class ConceptNet(nn.Module):
                 sum = 0
                 for subset in subsets:
                     # score 1:
-                    c1 = subset + [idx]
+                    c1 = list(subset) + [idx]
                     concept = np.take(self.concept.T.detach().cpu().numpy(), np.asarray(c1), axis=0)
-                    concept = torch.from_numpy(concept).T
-                    pred = proj(concept.cuda())
+                    concept = torch.from_numpy(concept).T.to(self.concept.device)
+                    pred = proj(concept)
                     score1 = n(pred)
-
+    
                     # score 2:
-                    c1 = subset
-                    if c1 != []:
-                        concept = np.take(self.concept.T.detach().cpu().numpy(), np.asarray(c1), axis=0)
-                        concept = torch.from_numpy(concept).T
-                        pred = proj(concept.cuda())
+                    if subset:
+                        c2 = list(subset)
+                        concept = np.take(self.concept.T.detach().cpu().numpy(), np.asarray(c2), axis=0)
+                        concept = torch.from_numpy(concept).T.to(self.concept.device)
+                        pred = proj(concept)
                         score2 = n(pred)
-                    else: score2 = torch.tensor(0)
-
+                    else:
+                        score2 = torch.tensor(0).to(self.concept.device)
+    
                     norm = (math.factorial(len(c_id) - len(subset) - 1) * math.factorial(len(subset))) / \
                            math.factorial(len(c_id))
-                    sum += norm * (score1.data.item() - score2.data.item())
+                    sum += norm * (score1.item() - score2.item())
                 conceptSHAP.append(sum)
-
+    
         concept_diversity = self.calculate_concept_diversity()
-
+    
         if regularize:
             diversity_weight = 0.1  # Puoi regolare questo peso
             final_loss = pred_loss + (l_1 * L_sparse_1_new * -1) + (l_2 * L_sparse_2_new) - (diversity_weight * concept_diversity)
         else:
             final_loss = pred_loss
     
-        return completeness, conceptSHAP, final_loss, pred_loss, L_sparse_1_new, L_sparse_2_new, metrics, concept_diversity       
+        return completeness, conceptSHAP, final_loss, pred_loss, L_sparse_1_new, L_sparse_2_new, metrics, concept_diversity
