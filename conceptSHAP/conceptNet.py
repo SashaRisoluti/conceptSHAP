@@ -4,6 +4,7 @@ from itertools import chain, combinations
 import numpy as np
 import math
 import torch.nn.functional as F
+import ipertools
 
 class ConceptNet(nn.Module):
     def __init__(self, n_concepts, train_embeddings, num_classes, bge_model, original_texts):
