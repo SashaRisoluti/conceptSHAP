@@ -117,6 +117,11 @@ class ConceptNet(nn.Module):
         
         diversity = unique_words / self.n_concepts
         return diversity
+    def powerset(self, iterable):
+        "powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
+        s = list(iterable)
+        return list(itertools.chain.from_iterable(itertools.combinations(s, r) for r in range(len(s)+1)))
+
     
     def loss(self, train_embedding, train_y_true, h_x, regularize, doConceptSHAP, l_1, l_2, topk):
         orig_pred, y_pred, L_sparse_1_new, L_sparse_2_new, metrics = self.forward(train_embedding, h_x, topk)
@@ -144,10 +149,10 @@ class ConceptNet(nn.Module):
                 return self.linear(proj.T)
 
             # shapley score (note for n_concepts > 10, this is very inefficient to calculate)
-            c_id = np.asarray(list(range(len(self.concept.T))))
+            c_id = list(range(len(self.concept.T)))
             for idx in c_id:
-                exclude = np.delete(c_id, idx)
-                subsets = np.asarray(self.powerset(list(exclude)))
+                exclude = [x for x in c_id if x != idx]
+                subsets = self.powerset(exclude)
                 sum = 0
                 for subset in subsets:
                     # score 1:
@@ -179,11 +184,4 @@ class ConceptNet(nn.Module):
         else:
             final_loss = pred_loss
     
-        return completeness, conceptSHAP, final_loss, pred_loss, L_sparse_1_new, L_sparse_2_new, metrics, concept_diversity
-
-    def powerset(self, iterable):
-        "powerset([1,2,3]) --> [1], [2], [3], [1, 2], [1, 3], [2, 3], [1, 2, 3]]"
-        s = list(iterable)
-        pset = chain.from_iterable(combinations(s, r) for r in range(0, len(s) + 1))
-        return [list(i) for i in list(pset)]
-        
+        return completeness, conceptSHAP, final_loss, pred_loss, L_sparse_1_new, L_sparse_2_new, metrics, concept_diversity       
