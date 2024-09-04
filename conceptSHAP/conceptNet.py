@@ -15,6 +15,7 @@ class ConceptNet(nn.Module):
         self.num_classes = num_classes
         self.bge_model = bge_model
         self.original_texts = original_texts
+        self.linear = nn.Linear(embedding_dim, num_classes)
 
     def init_concept(self, embedding_dim, n_concepts):
         r_1 = -0.5
@@ -57,9 +58,9 @@ class ConceptNet(nn.Module):
         proj = proj_matrix @ train_embedding.T  # (embedding_dim x batch_size)
     
         # passing projected activations through rest of model
-        y_pred = torch.nn.functional.linear(proj.T, h_x.weight, h_x.bias)
+        y_pred = self.linear(proj.T)
     
-        orig_pred = h_x(train_embedding)
+        orig_pred = self.linear(train_embedding)
     
         # Calculate the regularization terms as in new version of paper
         k = topk # this is a tunable parameter
@@ -139,8 +140,8 @@ class ConceptNet(nn.Module):
                               @ concept.T  # (embedding_dim x embedding_dim)
                 proj = proj_matrix @ train_embedding.T  # (embedding_dim x batch_size)
 
-                # passing projected activations through rest of model
-                return h_x(proj.T)
+                # Usa il layer lineare invece di h_x
+                return self.linear(proj.T)
 
             # shapley score (note for n_concepts > 10, this is very inefficient to calculate)
             c_id = np.asarray(list(range(len(self.concept.T))))
