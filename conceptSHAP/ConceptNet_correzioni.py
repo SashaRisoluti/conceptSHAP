@@ -4,6 +4,7 @@ from itertools import chain, combinations
 import numpy as np
 import math
 import torch.nn.functional as F
+import itertools
 
 class ConceptNet(nn.Module):
     def __init__(self, n_concepts, train_embeddings, num_classes, bge_model, original_texts):
@@ -15,6 +16,7 @@ class ConceptNet(nn.Module):
         self.num_classes = num_classes
         self.bge_model = bge_model
         self.original_texts = original_texts
+        self.linear = nn.Linear(embedding_dim, num_classes)
 
     def init_concept(self, embedding_dim, n_concepts):
         r_1 = -0.5
@@ -57,9 +59,9 @@ class ConceptNet(nn.Module):
         proj = proj_matrix @ train_embedding.T  # (embedding_dim x batch_size)
     
         # passing projected activations through rest of model
-        y_pred = torch.nn.functional.linear(proj.T, h_x.weight, h_x.bias)
+        y_pred = self.linear(proj.T)
     
-        orig_pred = h_x(train_embedding)
+        orig_pred = self.linear(train_embedding)
     
         # Calculate the regularization terms as in new version of paper
         k = topk # this is a tunable parameter
@@ -116,6 +118,16 @@ class ConceptNet(nn.Module):
         
         diversity = unique_words / self.n_concepts
         return diversity
+    def powerset(self, iterable):
+        "powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
+        s = list(iterable)
+        return list(itertools.chain.from_iterable(itertools.combinations(s, r) for r in range(len(s)+1)))
+        
+    def proj_and_predict(self, concept, train_embedding):
+        proj_matrix = (concept @ torch.inverse((concept.T @ concept))) @ concept.T
+        proj = proj_matrix @ train_embedding.T
+        y_pred = self.linear(proj.T)
+        return y_pred
     
     def loss(self, train_embedding, train_y_true, h_x, regularize, doConceptSHAP, l_1, l_2, topk):
         orig_pred, y_pred, L_sparse_1_new, L_sparse_2_new, metrics = self.forward(train_embedding, h_x, topk)
@@ -123,71 +135,58 @@ class ConceptNet(nn.Module):
         ce_loss = nn.CrossEntropyLoss()
         loss_new = ce_loss(y_pred, train_y_true)
         pred_loss = torch.mean(loss_new)
-
-        # Calcola la penalità del centroide
-        centroid = torch.mean(train_embedding, dim=0)
-        centroid_penalty = torch.mean(torch.norm(self.concept - centroid.unsqueeze(1), dim=0))
-
+    
         # completeness score
         def n(y_pred):
             orig_correct = torch.sum(train_y_true == torch.argmax(orig_pred, axis=1))
             new_correct = torch.sum(train_y_true == torch.argmax(y_pred, axis=1))
             return torch.div(new_correct - (1/self.n_concepts), orig_correct - (1/self.n_concepts))
-
+    
         completeness = n(y_pred)
-
         conceptSHAP = []
+    
         if doConceptSHAP:
-            def proj(concept):
-                proj_matrix = (concept @ torch.inverse((concept.T @ concept))) \
-                              @ concept.T  # (embedding_dim x embedding_dim)
-                proj = proj_matrix @ train_embedding.T  # (embedding_dim x batch_size)
-
-                # passing projected activations through rest of model
-                return h_x(proj.T)
-
-            # shapley score (note for n_concepts > 10, this is very inefficient to calculate)
-            c_id = np.asarray(list(range(len(self.concept.T))))
+            # Approximate SHAP values using sampling
+            num_samples = 100  # Numero di campioni da usare per l'approssimazione
+            c_id = list(range(len(self.concept.T)))
+    
             for idx in c_id:
-                exclude = np.delete(c_id, idx)
-                subsets = np.asarray(self.powerset(list(exclude)))
-                sum = 0
-                for subset in subsets:
-                    # score 1:
-                    c1 = subset + [idx]
-                    concept = np.take(self.concept.T.detach().cpu().numpy(), np.asarray(c1), axis=0)
-                    concept = torch.from_numpy(concept).T
-                    pred = proj(concept.cuda())
-                    score1 = n(pred)
-
-                    # score 2:
-                    c1 = subset
-                    if c1 != []:
-                        concept = np.take(self.concept.T.detach().cpu().numpy(), np.asarray(c1), axis=0)
-                        concept = torch.from_numpy(concept).T
-                        pred = proj(concept.cuda())
-                        score2 = n(pred)
-                    else: score2 = torch.tensor(0)
-
-                    norm = (math.factorial(len(c_id) - len(subset) - 1) * math.factorial(len(subset))) / \
-                           math.factorial(len(c_id))
-                    sum += norm * (score1.data.item() - score2.data.item())
-                conceptSHAP.append(sum)
-
+                shap_value = 0.0
+                for _ in range(num_samples):
+                    # Genera una coalizione casuale che non include il concetto corrente
+                    subset = [i for i in c_id if i != idx and np.random.rand() > 0.5]
+                    # Calcola la previsione con e senza il concetto corrente
+                    c_with = subset + [idx]
+                    c_without = subset
+    
+                    # Costruisci il concetto con e senza il concetto corrente
+                    concept_with = self.concept[:, c_with]
+                    concept_without = self.concept[:, c_without] if c_without else None
+    
+                    # Previsione con il concetto corrente
+                    y_pred_with = self.proj_and_predict(concept_with, train_embedding)
+                    score_with = n(y_pred_with)
+    
+                    # Previsione senza il concetto corrente
+                    if concept_without is not None:
+                        y_pred_without = self.proj_and_predict(concept_without, train_embedding)
+                        score_without = n(y_pred_without)
+                    else:
+                        # Se non ci sono concetti nella coalizione, score_without è 0
+                        score_without = torch.tensor(0.0).to(self.concept.device)
+    
+                    # Aggiorna il valore SHAP per il concetto corrente
+                    shap_value += (score_with - score_without).item()
+    
+                # Calcola il valore medio SHAP
+                shap_value /= num_samples
+                conceptSHAP.append(shap_value)    
         concept_diversity = self.calculate_concept_diversity()
-
+    
         if regularize:
-            diversity_weight = 0.1
-            centroid_weight = 0.5  # Puoi regolare questo peso
-            final_loss = pred_loss + (l_1 * L_sparse_1_new * -1) + (l_2 * L_sparse_2_new) - (diversity_weight * concept_diversity) + (centroid_weight * centroid_penalty)
+            diversity_weight = 0.1  # Puoi regolare questo peso
+            final_loss = pred_loss + (l_1 * L_sparse_1_new * -1) + (l_2 * L_sparse_2_new) - (diversity_weight * concept_diversity)
         else:
             final_loss = pred_loss
-
+    
         return completeness, conceptSHAP, final_loss, pred_loss, L_sparse_1_new, L_sparse_2_new, metrics, concept_diversity
-
-    def powerset(self, iterable):
-        "powerset([1,2,3]) --> [1], [2], [3], [1, 2], [1, 3], [2, 3], [1, 2, 3]]"
-        s = list(iterable)
-        pset = chain.from_iterable(combinations(s, r) for r in range(0, len(s) + 1))
-        return [list(i) for i in list(pset)]
-        
